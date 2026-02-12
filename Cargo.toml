@@ -5,8 +5,14 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0"
+crossterm = "0.29"
 git2 = "0.20"
+ratatui = "0.30"
 
 [dev-dependencies]
 ctor = "0.6"
 assert_cmd = "2.0"
+
+[lints.rust.unexpected_cfgs]
+level = "deny"
+check-cfg = ["cfg(dylint_lib, values(any()))"]

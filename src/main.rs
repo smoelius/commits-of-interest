@@ -3,6 +3,7 @@ use git2::Repository;
 use std::env;
 
 mod git;
+mod tui;
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -12,8 +13,9 @@ fn main() -> Result<()> {
     };
 
     let repo = Repository::open(".")?;
+    let commits = git::collect_commits(&repo, revision)?;
 
-    git::process_commits(&repo, revision)?;
+    tui::run(commits)?;
 
     Ok(())
 }
