@@ -1,16 +1,39 @@
 use anyhow::Result;
 use git2::{Commit, Diff, Oid, Patch, Repository, Sort};
+use std::fs;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
-pub const FILTERED_COMPONENTS: &[&str] = &[
-    ".github",
-    "CHANGELOG.md",
-    "Cargo.toml",
-    "Cargo.lock",
-    "examples",
-    "fixtures",
-    "tests",
-];
+static FILTERED_COMPONENTS: OnceLock<Vec<String>> = OnceLock::new();
+
+fn filtered_components(repo: &Repository) -> &'static [String] {
+    FILTERED_COMPONENTS.get_or_init(|| {
+        let mut components: Vec<String> = [
+            ".github",
+            "CHANGELOG.md",
+            "Cargo.toml",
+            "Cargo.lock",
+            "examples",
+            "fixtures",
+            "tests",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        if let Some(workdir) = repo.workdir() {
+            let path = workdir.join(".filtered_components.txt");
+            if let Ok(contents) = fs::read_to_string(&path) {
+                for line in contents.lines() {
+                    let line = line.trim();
+                    if !line.is_empty() {
+                        components.push(line.to_string());
+                    }
+                }
+            }
+        }
+        components
+    })
+}
 
 pub trait ShortId {
     fn short_id(&self) -> String;
@@ -47,6 +70,9 @@ pub struct DiffLine {
 }
 
 pub fn collect_commits(repo: &Repository, revision: &str) -> Result<Vec<CommitInfo>> {
+    // Ensure the `OnceLock` is initialized before iterating over commits.
+    let _: &[String] = filtered_components(repo);
+
     let mut commits = Vec::new();
 
     let mut revwalk = repo.revwalk()?;
@@ -102,6 +128,7 @@ fn build_commit_info(repo: &Repository, commit: &Commit) -> Result<Option<Commit
 }
 
 fn collect_diffs(diff: &Diff) -> Result<Vec<FileDiff>> {
+    let filtered_components = FILTERED_COMPONENTS.get().unwrap();
     let mut diffs = Vec::new();
 
     for file_idx in 0..diff.deltas().len() {
@@ -115,10 +142,10 @@ fn collect_diffs(diff: &Diff) -> Result<Vec<FileDiff>> {
             continue;
         };
 
-        if path.components().any(|component| {
-            FILTERED_COMPONENTS
+        if path.components().any(|path_component| {
+            filtered_components
                 .iter()
-                .any(|&filtered| component.as_os_str() == filtered)
+                .any(|filtered_component| path_component.as_os_str() == filtered_component.as_str())
         }) {
             continue;
         }
