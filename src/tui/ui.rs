@@ -22,7 +22,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     draw_diff_pane(frame, app, chunks[1]);
 }
 
-fn draw_commit_pane(frame: &mut Frame, app: &App, area: Rect) {
+fn draw_commit_pane(frame: &mut Frame, app: &mut App, area: Rect) {
     let items: Vec<ListItem> = app.items.iter().cloned().map(ListItem::new).collect();
 
     let border_type = if app.focus == Pane::Left {
@@ -43,9 +43,10 @@ fn draw_commit_pane(frame: &mut Frame, app: &App, area: Rect) {
                 .add_modifier(Modifier::BOLD),
         );
 
-    let mut state = ListState::default();
+    let mut state = ListState::default().with_offset(app.offset);
     state.select(Some(app.selected));
     frame.render_stateful_widget(list, area, &mut state);
+    app.offset = state.offset();
 }
 
 fn draw_diff_pane(frame: &mut Frame, app: &mut App, area: Rect) {
