@@ -13,6 +13,10 @@ Analyzes the commits between a given revision and HEAD, filtering out changes to
 non-essential paths (e.g., CI configuration, lock files, tests) and presenting
 the remaining commits in an interactive TUI for review.
 
+The filtered components can be customized by adding a .filtered_components.txt
+file to the repository root. Each non-empty line names an additional path
+component to exclude.
+
 USAGE:
     commits-of-interest <revision>
 
