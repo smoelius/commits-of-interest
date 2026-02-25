@@ -1,7 +1,9 @@
 use anyhow::{Result, bail, ensure};
 use git2::Repository;
-use std::env;
-use std::process::{Command, exit};
+use std::{
+    env,
+    process::{Command, exit},
+};
 
 mod git;
 mod github;
@@ -68,6 +70,7 @@ fn most_recent_tag() -> Result<String> {
         output.status.success(),
         "no previous tag found; specify a revision explicitly"
     );
-    let tag = std::str::from_utf8(&output.stdout)?.trim().to_string();
+    let stdout = std::str::from_utf8(&output.stdout)?;
+    let tag = stdout.trim().to_string();
     Ok(tag)
 }

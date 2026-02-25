@@ -1,7 +1,6 @@
 use crate::git::CommitInfo;
 use serde_json::{Value, from_slice};
-use std::fmt::Write;
-use std::process::Command;
+use std::{fmt::Write, process::Command};
 
 const BATCH_SIZE: usize = 50;
 
@@ -20,7 +19,7 @@ pub fn lookup_prs(commits: &mut [CommitInfo]) -> bool {
     success
 }
 
-fn repo_owner_and_name() -> Option<(String, String)> {
+pub fn repo_owner_and_name() -> Option<(String, String)> {
     let output = Command::new("git")
         .args(["remote", "get-url", "origin"])
         .output()
@@ -97,11 +96,11 @@ fn build_graphql_query(commits: &[CommitInfo], owner: &str, name: &str) -> Strin
 }
 
 fn extract_pr(repo: &Value, alias: &str) -> Option<u64> {
-    let nodes = repo
-        .get(alias)?
-        .get("associatedPullRequests")?
-        .get("nodes")?
-        .as_array()?;
+    let object = repo.get(alias)?;
+    let associated_prs = object.get("associatedPullRequests")?;
+    let nodes_value = associated_prs.get("nodes")?;
+    let nodes = nodes_value.as_array()?;
     let first = nodes.first()?;
-    first.get("number")?.as_u64()
+    let pr_number = first.get("number")?;
+    pr_number.as_u64()
 }

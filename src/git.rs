@@ -1,8 +1,6 @@
 use anyhow::Result;
 use git2::{Commit, Diff, Oid, Patch, Repository, Sort};
-use std::fs;
-use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::{fs, path::PathBuf, sync::OnceLock};
 
 pub trait ShortId {
     fn short_id(&self) -> String;

@@ -1,18 +1,22 @@
 mod event;
 mod ui;
 
-use crate::git::{CommitInfo, FileDiff};
+use crate::{
+    git::{CommitInfo, FileDiff},
+    github,
+};
 use anyhow::Result;
 use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
-    Terminal, backend::CrosstermBackend,
+    Terminal,
+    backend::CrosstermBackend,
     style::{Color, Style},
     text::{Line, Span},
 };
-use std::io;
+use std::{fmt::Write, io, path::Path};
 
 pub enum ListEntry {
     Commit {
@@ -42,6 +46,7 @@ pub struct App {
     pub selected: usize,
     pub diff_scroll: usize,
     pub should_quit: bool,
+    pub save_proposed_changelog: bool,
 }
 
 impl App {
@@ -58,6 +63,7 @@ impl App {
             selected,
             diff_scroll: 0,
             should_quit: false,
+            save_proposed_changelog: false,
         }
     }
 
@@ -220,7 +226,16 @@ pub fn run(commits: Vec<CommitInfo>) -> Result<()> {
 
     terminal.show_cursor()?;
 
-    result
+    result?;
+
+    if app.save_proposed_changelog {
+        match write_proposed_changelog(&app) {
+            Ok(()) => eprintln!("Changelog written to proposed_changelog.md"),
+            Err(error) => eprintln!("Error writing changelog: {error}"),
+        }
+    }
+
+    Ok(())
 }
 
 fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> Result<()> {
@@ -237,5 +252,34 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App
             break;
         }
     }
+    Ok(())
+}
+
+fn write_proposed_changelog(app: &App) -> Result<()> {
+    use anyhow::bail;
+
+    let path = Path::new("proposed_changelog.md");
+    if path.exists() {
+        bail!("proposed_changelog.md already exists; not overwriting");
+    }
+
+    let Some((owner, name)) = github::repo_owner_and_name() else {
+        bail!("could not determine GitHub repository URL");
+    };
+
+    let mut content = String::new();
+    for entry in &app.entries {
+        if let ListEntry::Commit { commit_idx, .. } = entry {
+            let commit = &app.commits[*commit_idx];
+            let url = format!("https://github.com/{owner}/{name}/commit/{}", commit.oid);
+            writeln!(
+                content,
+                "- {} [{}]({})",
+                commit.message, commit.short_id, url
+            )?;
+        }
+    }
+
+    std::fs::write(path, content)?;
     Ok(())
 }
