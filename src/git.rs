@@ -4,37 +4,6 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-static FILTERED_COMPONENTS: OnceLock<Vec<String>> = OnceLock::new();
-
-fn filtered_components(repo: &Repository) -> &'static [String] {
-    FILTERED_COMPONENTS.get_or_init(|| {
-        let mut components: Vec<String> = [
-            ".github",
-            "CHANGELOG.md",
-            "Cargo.toml",
-            "Cargo.lock",
-            "examples",
-            "fixtures",
-            "tests",
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-        if let Some(workdir) = repo.workdir() {
-            let path = workdir.join(".filtered_components.txt");
-            if let Ok(contents) = fs::read_to_string(&path) {
-                for line in contents.lines() {
-                    let line = line.trim();
-                    if !line.is_empty() {
-                        components.push(line.to_string());
-                    }
-                }
-            }
-        }
-        components
-    })
-}
-
 pub trait ShortId {
     fn short_id(&self) -> String;
 }
@@ -55,7 +24,9 @@ impl ShortId for Oid {
 
 pub struct CommitInfo {
     pub short_id: String,
+    pub oid: String,
     pub message: String,
+    pub pr: Option<u64>,
     pub file_diffs: Vec<FileDiff>,
 }
 
@@ -96,6 +67,37 @@ pub fn collect_commits(repo: &Repository, revision: &str) -> Result<Vec<CommitIn
     Ok(commits)
 }
 
+static FILTERED_COMPONENTS: OnceLock<Vec<String>> = OnceLock::new();
+
+fn filtered_components(repo: &Repository) -> &'static [String] {
+    FILTERED_COMPONENTS.get_or_init(|| {
+        let mut components: Vec<String> = [
+            ".github",
+            "CHANGELOG.md",
+            "Cargo.toml",
+            "Cargo.lock",
+            "examples",
+            "fixtures",
+            "tests",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        if let Some(workdir) = repo.workdir() {
+            let config_path = workdir.join(".filtered_components.txt");
+            if let Ok(contents) = fs::read_to_string(&config_path) {
+                for line in contents.lines() {
+                    let line = line.trim();
+                    if !line.is_empty() {
+                        components.push(line.to_string());
+                    }
+                }
+            }
+        }
+        components
+    })
+}
+
 fn build_commit_info(repo: &Repository, commit: &Commit) -> Result<Option<CommitInfo>> {
     let parent_tree = if commit.parent_count() >= 1 {
         let parent_commit = commit.parent(0)?;
@@ -122,7 +124,9 @@ fn build_commit_info(repo: &Repository, commit: &Commit) -> Result<Option<Commit
 
     Ok(Some(CommitInfo {
         short_id: commit.short_id(),
+        oid: commit.id().to_string(),
         message,
+        pr: None,
         file_diffs,
     }))
 }

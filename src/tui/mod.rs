@@ -15,8 +15,16 @@ use ratatui::{
 use std::io;
 
 pub enum ListEntry {
-    Commit { short_id: String, message: String },
-    Path { commit_idx: usize, file_idx: usize },
+    Commit {
+        commit_idx: usize,
+        pr_label: Option<String>,
+        indent: usize,
+    },
+    Path {
+        commit_idx: usize,
+        file_idx: usize,
+        indent: usize,
+    },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -58,6 +66,7 @@ impl App {
             ListEntry::Path {
                 commit_idx,
                 file_idx,
+                ..
             } => Some(&self.commits[*commit_idx].file_diffs[*file_idx]),
             ListEntry::Commit { .. } => None,
         }
@@ -82,6 +91,10 @@ impl App {
             if matches!(self.entries[prev], ListEntry::Path { .. }) {
                 self.selected = prev;
                 self.diff_scroll = 0;
+                // Ensure the commit header above this file is visible.
+                if prev > 0 && matches!(self.entries[prev - 1], ListEntry::Commit { .. }) {
+                    self.offset = self.offset.min(prev - 1);
+                }
                 return;
             }
         }
@@ -104,17 +117,38 @@ impl App {
 }
 
 fn entries_from_commits(commits: &[CommitInfo]) -> Vec<ListEntry> {
-    let mut entries = Vec::new();
+    // Group commits by PR, preserving first-appearance order.
+    let mut pr_groups: Vec<(String, Vec<usize>)> = Vec::new();
     for (commit_idx, commit) in commits.iter().enumerate() {
-        entries.push(ListEntry::Commit {
-            short_id: commit.short_id.clone(),
-            message: commit.message.clone(),
-        });
-        for (file_idx, _) in commit.file_diffs.iter().enumerate() {
-            entries.push(ListEntry::Path {
+        let label = commit
+            .pr
+            .map(|n| format!("#{n}"))
+            .unwrap_or_else(|| "??".to_owned());
+        if let Some(group) = pr_groups.iter_mut().find(|(l, _)| *l == label) {
+            group.1.push(commit_idx);
+        } else {
+            pr_groups.push((label, vec![commit_idx]));
+        }
+    }
+
+    let mut entries = Vec::new();
+    for (label, commit_indices) in pr_groups {
+        // +1 for the space after the label.
+        let indent = label.len() + 1;
+        for (i, commit_idx) in commit_indices.into_iter().enumerate() {
+            let pr_label = if i == 0 { Some(label.clone()) } else { None };
+            entries.push(ListEntry::Commit {
                 commit_idx,
-                file_idx,
+                pr_label,
+                indent,
             });
+            for file_idx in 0..commits[commit_idx].file_diffs.len() {
+                entries.push(ListEntry::Path {
+                    commit_idx,
+                    file_idx,
+                    indent,
+                });
+            }
         }
     }
     entries
@@ -124,17 +158,38 @@ fn build_items(entries: &[ListEntry], commits: &[CommitInfo]) -> Vec<Line<'stati
     entries
         .iter()
         .map(|entry| match entry {
-            ListEntry::Commit { short_id, message } => Line::from(vec![
-                Span::styled(short_id.clone(), Style::default().fg(Color::Yellow)),
-                Span::raw(" "),
-                Span::raw(message.clone()),
-            ]),
+            ListEntry::Commit {
+                commit_idx,
+                pr_label,
+                indent,
+            } => {
+                let commit = &commits[*commit_idx];
+                let mut spans = Vec::new();
+                if let Some(label) = pr_label {
+                    spans.push(Span::styled(
+                        label.clone(),
+                        Style::default().fg(Color::Cyan),
+                    ));
+                    spans.push(Span::raw(" "));
+                } else {
+                    spans.push(Span::raw(" ".repeat(*indent)));
+                }
+                spans.push(Span::styled(
+                    commit.short_id.clone(),
+                    Style::default().fg(Color::Yellow),
+                ));
+                spans.push(Span::raw(" "));
+                spans.push(Span::raw(commit.message.clone()));
+                Line::from(spans)
+            }
             ListEntry::Path {
                 commit_idx,
                 file_idx,
+                indent,
             } => {
                 let path = &commits[*commit_idx].file_diffs[*file_idx].path;
                 Line::from(vec![
+                    Span::raw(" ".repeat(*indent)),
                     Span::raw("  "),
                     Span::raw(path.to_string_lossy().into_owned()),
                 ])

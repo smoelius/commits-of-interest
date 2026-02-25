@@ -4,6 +4,7 @@ use std::env;
 use std::process::{Command, exit};
 
 mod git;
+mod github;
 mod tui;
 
 const HELP: &str = "\
@@ -45,9 +46,16 @@ fn main() -> Result<()> {
     };
 
     let repo = Repository::open(".")?;
-    let commits = git::collect_commits(&repo, &revision)?;
+    let mut commits = git::collect_commits(&repo, &revision)?;
+    let prs_found = github::lookup_prs(&mut commits);
 
     tui::run(commits)?;
+
+    if !prs_found {
+        eprintln!(
+            "Note: PR lookup failed. If `gh` is installed and authenticated, PRs will be shown."
+        );
+    }
 
     Ok(())
 }
