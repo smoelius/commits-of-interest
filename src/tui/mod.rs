@@ -267,19 +267,67 @@ fn write_proposed_changelog(app: &App) -> Result<()> {
         bail!("could not determine GitHub repository URL");
     };
 
-    let mut content = String::new();
-    for entry in &app.entries {
-        if let ListEntry::Commit { commit_idx, .. } = entry {
-            let commit = &app.commits[*commit_idx];
-            let url = format!("https://github.com/{owner}/{name}/commit/{}", commit.oid);
-            writeln!(
-                content,
-                "- {} [{}]({})",
-                commit.message, commit.short_id, url
-            )?;
-        }
-    }
-
+    let content = format_proposed_changelog(&app.entries, &app.commits, &owner, &name);
     std::fs::write(path, content)?;
     Ok(())
+}
+
+fn format_proposed_changelog(
+    entries: &[ListEntry],
+    commits: &[CommitInfo],
+    owner: &str,
+    name: &str,
+) -> String {
+    let mut content = String::new();
+    for entry in entries {
+        if let ListEntry::Commit { commit_idx, .. } = entry {
+            let commit = &commits[*commit_idx];
+            let url = format!("https://github.com/{owner}/{name}/commit/{}", commit.oid);
+            writeln!(content, "- {} [{}]({})", commit.message, commit.short_id, url).unwrap();
+        }
+    }
+    content
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::git::CommitInfo;
+
+    #[test]
+    fn format_proposed_changelog_basic() {
+        let commits = vec![
+            make_commit(
+                "abc1234",
+                "abc1234abc1234abc1234abc1234abc1234abc1234",
+                "Fix the widget",
+                Some(42),
+            ),
+            make_commit(
+                "def5678",
+                "def5678def5678def5678def5678def5678def5678",
+                "Update tests",
+                None,
+            ),
+        ];
+        let entries = entries_from_commits(&commits);
+        let content = format_proposed_changelog(&entries, &commits, "owner", "repo");
+        assert_eq!(
+            content,
+            "\
+- Fix the widget [abc1234](https://github.com/owner/repo/commit/abc1234abc1234abc1234abc1234abc1234abc1234)
+- Update tests [def5678](https://github.com/owner/repo/commit/def5678def5678def5678def5678def5678def5678)
+"
+        );
+    }
+
+    fn make_commit(short_id: &str, oid: &str, message: &str, pr: Option<u64>) -> CommitInfo {
+        CommitInfo {
+            short_id: short_id.to_owned(),
+            oid: oid.to_owned(),
+            message: message.to_owned(),
+            pr,
+            file_diffs: Vec::new(),
+        }
+    }
 }
