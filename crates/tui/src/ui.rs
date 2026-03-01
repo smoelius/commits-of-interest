@@ -1,12 +1,12 @@
-use super::{App, Pane};
-use crate::git::DiffLine;
+use super::{App, InputMode, Pane};
+use commits_of_interest_core::git::DiffLine;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::Line,
     widgets::{
-        Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Scrollbar,
+        Block, BorderType, Borders, Clear, List, ListItem, ListState, Paragraph, Scrollbar,
         ScrollbarOrientation, ScrollbarState,
     },
 };
@@ -20,6 +20,15 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
 
     draw_commit_pane(frame, app, chunks[0]);
     draw_diff_pane(frame, app, chunks[1]);
+
+    if app.input_mode == InputMode::AddComponent {
+        if frame.area().width >= POPUP_MIN_WIDTH {
+            draw_input_popup(frame, app, frame.area());
+        } else {
+            app.input_mode = InputMode::Normal;
+            app.input_buffer.clear();
+        }
+    }
 }
 
 fn draw_commit_pane(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -96,6 +105,26 @@ fn draw_diff_pane(frame: &mut Frame, app: &mut App, area: Rect) {
         area,
         &mut scrollbar_state,
     );
+}
+
+pub const POPUP_MIN_WIDTH: u16 = 28;
+const POPUP_HEIGHT: u16 = 3;
+
+fn draw_input_popup(frame: &mut Frame, app: &App, area: Rect) {
+    let width = (area.width / 2).max(POPUP_MIN_WIDTH).min(area.width);
+    let height = POPUP_HEIGHT.min(area.height);
+    let x = (area.width.saturating_sub(width)) / 2;
+    let y = (area.height.saturating_sub(height)) / 2;
+    let popup_area = Rect::new(area.x + x, area.y + y, width, height);
+
+    frame.render_widget(Clear, popup_area);
+
+    let input = Paragraph::new(app.input_buffer.as_str()).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Filtered component to add"),
+    );
+    frame.render_widget(input, popup_area);
 }
 
 fn colorize_diff_line(dl: &DiffLine) -> Line<'_> {

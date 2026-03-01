@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "crates/core", "crates/tui"]
+
 [package]
 name = "commits-of-interest"
 version = "0.1.0"
@@ -5,10 +8,9 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0"
-crossterm = "0.29"
+commits-of-interest-core = { path = "crates/core" }
+commits-of-interest-tui = { path = "crates/tui" }
 git2 = "0.20"
-ratatui = "0.30"
-serde_json = "1.0"
 
 [dev-dependencies]
 ctor = "0.6"

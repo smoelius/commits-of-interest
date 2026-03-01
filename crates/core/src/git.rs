@@ -1,6 +1,6 @@
 use anyhow::Result;
 use git2::{Commit, Diff, Oid, Patch, Repository, Sort};
-use std::{fs, path::PathBuf, sync::OnceLock};
+use std::{fs, path::PathBuf};
 
 pub trait ShortId {
     fn short_id(&self) -> String;
@@ -39,8 +39,7 @@ pub struct DiffLine {
 }
 
 pub fn collect_commits(repo: &Repository, revision: &str) -> Result<Vec<CommitInfo>> {
-    // Ensure the `OnceLock` is initialized before iterating over commits.
-    let _: &[String] = filtered_components(repo);
+    let filtered = load_filtered_components(repo);
 
     let mut commits = Vec::new();
 
@@ -57,7 +56,7 @@ pub fn collect_commits(repo: &Repository, revision: &str) -> Result<Vec<CommitIn
     for result in revwalk {
         let oid = result?;
         let commit = repo.find_commit(oid)?;
-        if let Some(info) = build_commit_info(repo, &commit)? {
+        if let Some(info) = build_commit_info(repo, &commit, &filtered)? {
             commits.push(info);
         }
     }
@@ -65,38 +64,38 @@ pub fn collect_commits(repo: &Repository, revision: &str) -> Result<Vec<CommitIn
     Ok(commits)
 }
 
-static FILTERED_COMPONENTS: OnceLock<Vec<String>> = OnceLock::new();
-
-fn filtered_components(repo: &Repository) -> &'static [String] {
-    FILTERED_COMPONENTS.get_or_init(|| {
-        let mut components: Vec<String> = [
-            ".github",
-            "CHANGELOG.md",
-            "Cargo.toml",
-            "Cargo.lock",
-            "examples",
-            "fixtures",
-            "tests",
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-        if let Some(workdir) = repo.workdir() {
-            let config_path = workdir.join(".filtered_components.txt");
-            if let Ok(contents) = fs::read_to_string(&config_path) {
-                for line in contents.lines() {
-                    let line = line.trim();
-                    if !line.is_empty() {
-                        components.push(line.to_string());
-                    }
+pub fn load_filtered_components(repo: &Repository) -> Vec<String> {
+    let mut components: Vec<String> = [
+        ".github",
+        "CHANGELOG.md",
+        "Cargo.toml",
+        "Cargo.lock",
+        "examples",
+        "fixtures",
+        "tests",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
+    if let Some(workdir) = repo.workdir() {
+        let config_path = workdir.join(".filtered_components.txt");
+        if let Ok(contents) = fs::read_to_string(&config_path) {
+            for line in contents.lines() {
+                let line = line.trim();
+                if !line.is_empty() {
+                    components.push(line.to_string());
                 }
             }
         }
-        components
-    })
+    }
+    components
 }
 
-fn build_commit_info(repo: &Repository, commit: &Commit) -> Result<Option<CommitInfo>> {
+fn build_commit_info(
+    repo: &Repository,
+    commit: &Commit,
+    filtered: &[String],
+) -> Result<Option<CommitInfo>> {
     let parent_tree = if commit.parent_count() >= 1 {
         let parent_commit = commit.parent(0)?;
         let parent_tree = parent_commit.tree()?;
@@ -109,7 +108,7 @@ fn build_commit_info(repo: &Repository, commit: &Commit) -> Result<Option<Commit
 
     let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), None)?;
 
-    let file_diffs = collect_diffs(&diff)?;
+    let file_diffs = collect_diffs(&diff, filtered)?;
     if file_diffs.is_empty() {
         return Ok(None);
     }
@@ -129,8 +128,7 @@ fn build_commit_info(repo: &Repository, commit: &Commit) -> Result<Option<Commit
     }))
 }
 
-fn collect_diffs(diff: &Diff) -> Result<Vec<FileDiff>> {
-    let filtered_components = FILTERED_COMPONENTS.get().unwrap();
+fn collect_diffs(diff: &Diff, filtered_components: &[String]) -> Result<Vec<FileDiff>> {
     let mut diffs = Vec::new();
 
     for file_idx in 0..diff.deltas().len() {

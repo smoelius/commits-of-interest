@@ -163,11 +163,30 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
- "crossterm",
+ "commits-of-interest-core",
+ "commits-of-interest-tui",
  "ctor",
  "git2",
- "ratatui",
+]
+
+[[package]]
+name = "commits-of-interest-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "git2",
  "serde_json",
+]
+
+[[package]]
+name = "commits-of-interest-tui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "commits-of-interest-core",
+ "crossterm",
+ "git2",
+ "ratatui",
 ]
 
 [[package]]

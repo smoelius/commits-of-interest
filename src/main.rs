@@ -1,13 +1,10 @@
 use anyhow::{Result, bail, ensure};
+use commits_of_interest_core::{git, github};
 use git2::Repository;
 use std::{
     env,
     process::{Command, exit},
 };
-
-mod git;
-mod github;
-mod tui;
 
 const HELP: &str = "\
 commits-of-interest - Identify commits with meaningful code changes
@@ -51,7 +48,7 @@ fn main() -> Result<()> {
     let mut commits = git::collect_commits(&repo, &revision)?;
     let prs_found = github::lookup_prs(&mut commits);
 
-    tui::run(commits)?;
+    commits_of_interest_tui::run(commits, &revision)?;
 
     if !prs_found {
         eprintln!(
