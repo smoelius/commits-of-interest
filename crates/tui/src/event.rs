@@ -51,7 +51,7 @@ fn handle_input_key(key: KeyEvent, app: &mut App) {
         KeyCode::Backspace => {
             app.input_buffer.pop();
         }
-        KeyCode::Char(c) if c != '/' && c != '.' => {
+        KeyCode::Char(c) if c != '/' => {
             app.input_buffer.push(c);
         }
         _ => {}
