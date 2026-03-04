@@ -74,7 +74,7 @@ pub fn format_proposed_changelog(
         if let ListEntry::Commit { commit_idx, .. } = entry {
             let commit = &commits[*commit_idx];
             let url = format!("https://github.com/{owner}/{name}/commit/{}", commit.oid);
-            writeln!(content, "- {} [{}]({})", commit.message, commit.short_id, url).unwrap();
+            writeln!(content, "- {} ([{}]({}))", commit.message, commit.short_id, url).unwrap();
         }
     }
     content
@@ -107,8 +107,8 @@ mod tests {
         assert_eq!(
             content,
             "\
-- Fix the widget [abc1234](https://github.com/owner/repo/commit/abc1234abc1234abc1234abc1234abc1234abc1234)
-- Update tests [def5678](https://github.com/owner/repo/commit/def5678def5678def5678def5678def5678def5678)
+- Fix the widget ([abc1234](https://github.com/owner/repo/commit/abc1234abc1234abc1234abc1234abc1234abc1234))
+- Update tests ([def5678](https://github.com/owner/repo/commit/def5678def5678def5678def5678def5678def5678))
 "
         );
     }
