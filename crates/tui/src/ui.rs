@@ -6,29 +6,23 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::Line,
     widgets::{
-        Block, BorderType, Borders, Clear, List, ListItem, ListState, Paragraph, Scrollbar,
+        Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Scrollbar,
         ScrollbarOrientation, ScrollbarState,
     },
 };
 
 #[cfg_attr(dylint_lib = "supplementary", allow(unnamed_constant))]
 pub fn draw(frame: &mut Frame, app: &mut App) {
+    let [main_area, footer_area] =
+        Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(frame.area());
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
-        .split(frame.area());
+        .split(main_area);
 
     draw_commit_pane(frame, app, chunks[0]);
     draw_diff_pane(frame, app, chunks[1]);
-
-    if app.input_mode == InputMode::AddComponent {
-        if frame.area().width >= POPUP_MIN_WIDTH {
-            draw_input_popup(frame, app, frame.area());
-        } else {
-            app.input_mode = InputMode::Normal;
-            app.input_buffer.clear();
-        }
-    }
+    draw_footer(frame, app, footer_area);
 }
 
 fn draw_commit_pane(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -107,24 +101,16 @@ fn draw_diff_pane(frame: &mut Frame, app: &mut App, area: Rect) {
     );
 }
 
-pub const POPUP_MIN_WIDTH: u16 = 28;
-const POPUP_HEIGHT: u16 = 3;
-
-fn draw_input_popup(frame: &mut Frame, app: &App, area: Rect) {
-    let width = (area.width / 2).max(POPUP_MIN_WIDTH).min(area.width);
-    let height = POPUP_HEIGHT.min(area.height);
-    let x = (area.width.saturating_sub(width)) / 2;
-    let y = (area.height.saturating_sub(height)) / 2;
-    let popup_area = Rect::new(area.x + x, area.y + y, width, height);
-
-    frame.render_widget(Clear, popup_area);
-
-    let input = Paragraph::new(app.input_buffer.as_str()).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title("Filtered component to add"),
-    );
-    frame.render_widget(input, popup_area);
+fn draw_footer(frame: &mut Frame, app: &App, area: Rect) {
+    let prompt = if app.input_mode == InputMode::AddComponent {
+        Line::from(format!(
+            "Filtered component: {}_  (Enter to add, Esc to cancel)",
+            app.input_buffer
+        ))
+    } else {
+        Line::from("↑↓ move  ←→/Tab focus  i filter  s save  q/Esc quit")
+    };
+    frame.render_widget(Paragraph::new(prompt), area);
 }
 
 fn colorize_diff_line(dl: &DiffLine) -> Line<'_> {
