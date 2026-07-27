@@ -1,9 +1,5 @@
 use super::{App, InputMode, Pane};
-use crate::ui::POPUP_MIN_WIDTH;
-use crossterm::{
-    event::{KeyCode, KeyEvent},
-    terminal::size as terminal_size,
-};
+use crossterm::event::{KeyCode, KeyEvent};
 
 pub fn handle_key(key: KeyEvent, app: &mut App) {
     match app.input_mode {
@@ -19,13 +15,7 @@ fn handle_normal_key(key: KeyEvent, app: &mut App) {
             app.save_proposed_changelog = true;
             app.should_quit = true;
         }
-        KeyCode::Char('i') => {
-            if let Ok((width, _)) = terminal_size()
-                && width >= POPUP_MIN_WIDTH
-            {
-                app.input_mode = InputMode::AddComponent;
-            }
-        }
+        KeyCode::Char('i') => app.input_mode = InputMode::AddComponent,
         KeyCode::Tab | KeyCode::BackTab => app.toggle_focus(),
         KeyCode::Left => app.focus = Pane::Left,
         KeyCode::Right => app.focus = Pane::Right,
