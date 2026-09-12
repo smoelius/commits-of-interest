@@ -10,7 +10,7 @@ edition = "2024"
 anyhow = "1.0"
 commits-of-interest-core = { path = "crates/core" }
 commits-of-interest-tui = { path = "crates/tui" }
-git2 = "0.20"
+git2 = "0.21"
 
 [dev-dependencies]
 assert_cmd = "2.0"
