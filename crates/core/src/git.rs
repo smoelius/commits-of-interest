@@ -115,6 +115,7 @@ fn build_commit_info(
 
     let message = commit
         .message()
+        .ok()
         .and_then(|message| message.lines().next())
         .unwrap_or("<no message>")
         .to_owned();
