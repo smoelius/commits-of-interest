@@ -4,6 +4,14 @@ Identify commits with meaningful code changes. `commits-of-interest` analyzes th
 
 The filtered components can be customized by adding a `.filtered_components.txt` file to the repository root. Each non-empty line names an additional path component to exclude.
 
+## Installation
+
+Install the latest version of `commits-of-interest` from its `main` branch:
+
+```sh
+cargo install --git https://github.com/smoelius/commits-of-interest
+```
+
 ## Usage
 
 ```
