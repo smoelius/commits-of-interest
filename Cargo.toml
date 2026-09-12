@@ -13,7 +13,6 @@ commits-of-interest-tui = { path = "crates/tui" }
 git2 = "0.20"
 
 [dev-dependencies]
-ctor = "0.6"
 assert_cmd = "2.0"
 
 [lints.rust.unexpected_cfgs]
