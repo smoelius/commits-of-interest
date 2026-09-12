@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0"
 crossterm = "0.29"
-git2 = "0.20"
+git2 = "0.21"
 ratatui = "0.30"
 commits-of-interest-core = { path = "../core" }
 
