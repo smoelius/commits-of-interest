@@ -8,6 +8,7 @@ use commits_of_interest_core::{
     github,
 };
 use crossterm::{
+    cursor::Show,
     event::{DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind, read},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
@@ -218,23 +219,89 @@ fn build_items(entries: &[ListEntry], commits: &[CommitInfo]) -> Vec<Line<'stati
         .collect()
 }
 
+#[derive(Default)]
+struct TerminalCleanup {
+    raw_mode: bool,
+    alternate_screen: bool,
+    mouse_capture: bool,
+    cursor_hidden: bool,
+}
+
+impl TerminalCleanup {
+    fn exec(&mut self) -> io::Result<()> {
+        let mut stdout = io::stdout();
+
+        // Clear each flag before attempting restoration so `Drop` does not repeat cleanup.
+
+        let cursor_result = if std::mem::take(&mut self.cursor_hidden) {
+            execute!(stdout, Show)
+        } else {
+            Ok(())
+        };
+
+        let mouse_result = if std::mem::take(&mut self.mouse_capture) {
+            execute!(stdout, DisableMouseCapture)
+        } else {
+            Ok(())
+        };
+
+        let screen_result = if std::mem::take(&mut self.alternate_screen) {
+            execute!(stdout, LeaveAlternateScreen)
+        } else {
+            Ok(())
+        };
+
+        let raw_mode_result = if std::mem::take(&mut self.raw_mode) {
+            disable_raw_mode()
+        } else {
+            Ok(())
+        };
+
+        cursor_result?;
+        mouse_result?;
+        screen_result?;
+        raw_mode_result?;
+
+        Ok(())
+    }
+}
+
+impl Drop for TerminalCleanup {
+    // `Drop` cannot report cleanup errors; explicit shutdown uses `exec`'s result.
+    #[cfg_attr(dylint_lib = "general", allow(non_local_effect_before_unhandled_error))]
+    fn drop(&mut self) {
+        // Preserve the original initialization error or panic during unwinding.
+        let _ = self.exec();
+    }
+}
+
+#[allow(clippy::field_reassign_with_default)]
 pub fn run(commits: Vec<CommitInfo>, revision: &str) -> Result<()> {
     let mut stdout = io::stdout();
 
+    // Arm restoration before each operation, which could partially succeed.
+    let mut cleanup = TerminalCleanup::default();
+
+    cleanup.raw_mode = true;
     enable_raw_mode()?;
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+
+    cleanup.alternate_screen = true;
+    execute!(stdout, EnterAlternateScreen)?;
+
+    cleanup.mouse_capture = true;
+    execute!(stdout, EnableMouseCapture)?;
 
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     let mut app = App::new(commits, revision.to_owned());
-    let result = run_loop(&mut terminal, &mut app);
+    // `terminal.draw` hides the cursor because `ui::draw` does not set a cursor position.
+    cleanup.cursor_hidden = true;
+    let app_result = run_loop(&mut terminal, &mut app);
 
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), DisableMouseCapture, LeaveAlternateScreen)?;
+    let cleanup_result = cleanup.exec();
 
-    terminal.show_cursor()?;
-
-    result?;
+    app_result?;
+    cleanup_result?;
 
     if app.save_proposed_changelog {
         match write_proposed_changelog(&app) {
