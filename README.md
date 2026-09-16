@@ -1,8 +1,13 @@
 # commits-of-interest
 
-Identify commits with meaningful code changes. `commits-of-interest` analyzes the commits between a given revision and HEAD, filtering out changes to non-essential paths (e.g., CI configuration, lock files, tests) and presenting the remaining commits in an interactive TUI for review.
+Identify commits with meaningful code changes. `commits-of-interest` analyzes
+the commits between a given revision and HEAD, filtering out changes to
+non-essential paths (e.g., CI configuration, lock files, tests) and presenting
+the remaining commits in an interactive TUI for review.
 
-The filtered components can be customized by adding a `.filtered_components.txt` file to the repository root. Each non-empty line names an additional path component to exclude.
+The filtered components can be customized by adding a `.filtered_components.txt`
+file to the repository root. Each non-empty line names an additional path
+component to exclude.
 
 ## Installation
 
@@ -20,6 +25,16 @@ commits-of-interest <revision>
 
 Run `commits-of-interest --help` for more details.
 
+Click either pane to focus it. In the left pane, click a commit header to select
+its first file, or click a file to display its diff. Arrow keys and Tab also
+work for navigation and pane focus. Use the scroll wheel over the left pane to
+move through files, or over the right pane to scroll the diff. Wheel scrolling
+keeps the current pane focus.
+
 ## Filtering
 
-Path components matching any entry in `FILTERED_COMPONENTS` are excluded from diffs. In addition to the hardcoded defaults, you can add extra filtered components by creating a `.filtered_components.txt` file in the root of the repository being analyzed. Each line in the file is treated as a component name to filter out.
+Path components matching any entry in `FILTERED_COMPONENTS` are excluded from
+diffs. In addition to the hardcoded defaults, you can add extra filtered
+components by creating a `.filtered_components.txt` file in the root of the
+repository being analyzed. Each line in the file is treated as a component name
+to filter out.
