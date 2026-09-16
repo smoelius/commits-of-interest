@@ -21,6 +21,7 @@ pub fn draw(app: &mut App, frame: &mut Frame) {
         .direction(Direction::Horizontal)
         .constraints([COMMIT_PERCENTAGE, DIFF_PERCENTAGE])
         .split(main_area);
+    app.pane_areas = [chunks[0], chunks[1]];
 
     draw_commit_pane(app, frame, chunks[0]);
     draw_diff_pane(app, frame, chunks[1]);
@@ -110,7 +111,7 @@ fn draw_footer(app: &App, frame: &mut Frame, area: Rect) {
             app.input_buffer
         ))
     } else {
-        Line::from("↑↓ move  ←→/Tab focus  i filter  s save  q/Esc quit")
+        Line::from("↑↓/wheel move  ←→/Tab focus  click select/focus  i filter  s save  q/Esc quit")
     };
     frame.render_widget(Paragraph::new(prompt), area);
 }

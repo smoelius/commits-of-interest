@@ -8,6 +8,7 @@ use commits_of_interest_core::{
     github,
 };
 use crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind, read},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -15,6 +16,7 @@ use git2::Repository;
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
+    layout::Rect,
     style::{Color, Style},
     text::{Line, Span},
 };
@@ -41,6 +43,7 @@ struct App {
 
     // Navigation and layout
     focus: Pane,
+    pane_areas: [Rect; 2],
     selected: usize,
     offset: usize,
     diff_scroll: usize,
@@ -66,6 +69,7 @@ impl App {
             entries,
             items,
             focus: Pane::Left,
+            pane_areas: [Rect::default(); 2],
             selected,
             offset: 0,
             diff_scroll: 0,
@@ -218,7 +222,7 @@ pub fn run(commits: Vec<CommitInfo>, revision: &str) -> Result<()> {
     let mut stdout = io::stdout();
 
     enable_raw_mode()?;
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
 
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
@@ -226,7 +230,7 @@ pub fn run(commits: Vec<CommitInfo>, revision: &str) -> Result<()> {
     let result = run_loop(&mut terminal, &mut app);
 
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    execute!(terminal.backend_mut(), DisableMouseCapture, LeaveAlternateScreen)?;
 
     terminal.show_cursor()?;
 
@@ -246,10 +250,12 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App
     loop {
         terminal.draw(|frame| ui::draw(app, frame))?;
 
-        if let crossterm::event::Event::Key(key) = crossterm::event::read()?
-            && key.kind == crossterm::event::KeyEventKind::Press
-        {
-            event::handle_key(app, key);
+        match read()? {
+            Event::Key(key) if key.kind == KeyEventKind::Press => {
+                event::handle_key(app, key);
+            }
+            Event::Mouse(mouse) => event::handle_mouse(app, mouse),
+            _ => {}
         }
 
         if app.should_quit {
