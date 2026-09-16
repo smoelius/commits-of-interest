@@ -11,21 +11,23 @@ use ratatui::{
     },
 };
 
-#[cfg_attr(dylint_lib = "supplementary", allow(unnamed_constant))]
-pub fn draw(frame: &mut Frame, app: &mut App) {
+const COMMIT_PERCENTAGE: Constraint = Constraint::Percentage(40);
+const DIFF_PERCENTAGE: Constraint = Constraint::Percentage(60);
+
+pub fn draw(app: &mut App, frame: &mut Frame) {
     let [main_area, footer_area] =
         Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(frame.area());
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
+        .constraints([COMMIT_PERCENTAGE, DIFF_PERCENTAGE])
         .split(main_area);
 
-    draw_commit_pane(frame, app, chunks[0]);
-    draw_diff_pane(frame, app, chunks[1]);
-    draw_footer(frame, app, footer_area);
+    draw_commit_pane(app, frame, chunks[0]);
+    draw_diff_pane(app, frame, chunks[1]);
+    draw_footer(app, frame, footer_area);
 }
 
-fn draw_commit_pane(frame: &mut Frame, app: &mut App, area: Rect) {
+fn draw_commit_pane(app: &mut App, frame: &mut Frame, area: Rect) {
     let items: Vec<ListItem> = app.items.iter().cloned().map(ListItem::new).collect();
 
     let border_type = if app.focus == Pane::Left {
@@ -52,7 +54,7 @@ fn draw_commit_pane(frame: &mut Frame, app: &mut App, area: Rect) {
     app.offset = state.offset();
 }
 
-fn draw_diff_pane(frame: &mut Frame, app: &mut App, area: Rect) {
+fn draw_diff_pane(app: &mut App, frame: &mut Frame, area: Rect) {
     let border_type = if app.focus == Pane::Right {
         BorderType::Thick
     } else {
@@ -101,7 +103,7 @@ fn draw_diff_pane(frame: &mut Frame, app: &mut App, area: Rect) {
     );
 }
 
-fn draw_footer(frame: &mut Frame, app: &App, area: Rect) {
+fn draw_footer(app: &App, frame: &mut Frame, area: Rect) {
     let prompt = if app.input_mode == InputMode::AddComponent {
         Line::from(format!(
             "Filtered component: {}_  (Enter to add, Esc to cancel)",

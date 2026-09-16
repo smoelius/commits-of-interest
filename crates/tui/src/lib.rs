@@ -1,12 +1,12 @@
 mod event;
 mod ui;
 
+use anyhow::Result;
 use commits_of_interest_core::{
     entries::{ListEntry, entries_from_commits, first_entry, format_proposed_changelog},
     git::{CommitInfo, FileDiff, collect_commits},
     github,
 };
-use anyhow::Result;
 use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
@@ -32,19 +32,26 @@ pub enum InputMode {
     AddComponent,
 }
 
-pub struct App {
-    pub commits: Vec<CommitInfo>,
-    pub entries: Vec<ListEntry>,
-    pub items: Vec<Line<'static>>,
-    pub focus: Pane,
-    pub offset: usize,
-    pub selected: usize,
-    pub diff_scroll: usize,
-    pub should_quit: bool,
-    pub save_proposed_changelog: bool,
-    pub input_mode: InputMode,
-    pub input_buffer: String,
-    pub revision: String,
+struct App {
+    // Repository data
+    revision: String,
+    commits: Vec<CommitInfo>,
+    entries: Vec<ListEntry>,
+    items: Vec<Line<'static>>,
+
+    // Navigation and layout
+    focus: Pane,
+    selected: usize,
+    offset: usize,
+    diff_scroll: usize,
+
+    // Filter input
+    input_mode: InputMode,
+    input_buffer: String,
+
+    // Exit state
+    should_quit: bool,
+    save_proposed_changelog: bool,
 }
 
 impl App {
@@ -52,19 +59,20 @@ impl App {
         let entries = entries_from_commits(&commits);
         let items = build_items(&entries, &commits);
         let selected = first_entry(&entries).unwrap_or(0);
+
         Self {
+            revision,
             commits,
             entries,
             items,
             focus: Pane::Left,
-            offset: 0,
             selected,
+            offset: 0,
             diff_scroll: 0,
-            should_quit: false,
-            save_proposed_changelog: false,
             input_mode: InputMode::Normal,
             input_buffer: String::new(),
-            revision,
+            should_quit: false,
+            save_proposed_changelog: false,
         }
     }
 
@@ -98,6 +106,7 @@ impl App {
             if matches!(self.entries[prev], ListEntry::Path { .. }) {
                 self.selected = prev;
                 self.diff_scroll = 0;
+
                 // Ensure the commit header above this file is visible.
                 if prev > 0 && matches!(self.entries[prev - 1], ListEntry::Commit { .. }) {
                     self.offset = self.offset.min(prev - 1);
@@ -235,18 +244,19 @@ pub fn run(commits: Vec<CommitInfo>, revision: &str) -> Result<()> {
 
 fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> Result<()> {
     loop {
-        terminal.draw(|frame| ui::draw(frame, app))?;
+        terminal.draw(|frame| ui::draw(app, frame))?;
 
         if let crossterm::event::Event::Key(key) = crossterm::event::read()?
             && key.kind == crossterm::event::KeyEventKind::Press
         {
-            event::handle_key(key, app);
+            event::handle_key(app, key);
         }
 
         if app.should_quit {
             break;
         }
     }
+
     Ok(())
 }
 
