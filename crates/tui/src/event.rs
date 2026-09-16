@@ -1,14 +1,14 @@
 use super::{App, InputMode, Pane};
 use crossterm::event::{KeyCode, KeyEvent};
 
-pub fn handle_key(key: KeyEvent, app: &mut App) {
+pub fn handle_key(app: &mut App, key: KeyEvent) {
     match app.input_mode {
-        InputMode::Normal => handle_normal_key(key, app),
-        InputMode::AddComponent => handle_input_key(key, app),
+        InputMode::Normal => handle_normal_key(app, key),
+        InputMode::AddComponent => handle_input_key(app, key),
     }
 }
 
-fn handle_normal_key(key: KeyEvent, app: &mut App) {
+fn handle_normal_key(app: &mut App, key: KeyEvent) {
     match key.code {
         KeyCode::Char('q') | KeyCode::Esc => app.should_quit = true,
         KeyCode::Char('s') => {
@@ -31,7 +31,7 @@ fn handle_normal_key(key: KeyEvent, app: &mut App) {
     }
 }
 
-fn handle_input_key(key: KeyEvent, app: &mut App) {
+fn handle_input_key(app: &mut App, key: KeyEvent) {
     match key.code {
         KeyCode::Esc => {
             app.input_mode = InputMode::Normal;
