@@ -24,3 +24,10 @@ fn dylint() {
         .assert()
         .success();
 }
+
+#[test]
+fn fmt() {
+    let mut command = Command::new("cargo");
+    command.args(["+nightly", "fmt", "--check"]);
+    command.assert().success();
+}
