@@ -74,7 +74,12 @@ pub fn format_proposed_changelog(
         if let ListEntry::Commit { commit_idx, .. } = entry {
             let commit = &commits[*commit_idx];
             let url = format!("https://github.com/{owner}/{name}/commit/{}", commit.oid);
-            writeln!(content, "- {} ([{}]({}))", commit.message, commit.short_id, url).unwrap();
+            writeln!(
+                content,
+                "- {} ([{}]({}))",
+                commit.message, commit.short_id, url
+            )
+            .unwrap();
         }
     }
     content
@@ -197,20 +202,8 @@ mod tests {
         // Should be: Commit, Path(0), Path(1).
         assert_eq!(entries.len(), 3);
         assert!(matches!(entries[0], ListEntry::Commit { .. }));
-        assert!(matches!(
-            entries[1],
-            ListEntry::Path {
-                file_idx: 0,
-                ..
-            }
-        ));
-        assert!(matches!(
-            entries[2],
-            ListEntry::Path {
-                file_idx: 1,
-                ..
-            }
-        ));
+        assert!(matches!(entries[1], ListEntry::Path { file_idx: 0, .. }));
+        assert!(matches!(entries[2], ListEntry::Path { file_idx: 1, .. }));
     }
 
     #[test]
