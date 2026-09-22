@@ -1,11 +1,18 @@
-use anyhow::{Result, ensure};
+use anyhow::{Result, bail, ensure};
 use assert_cmd::assert::OutputAssertExt;
 use std::{
     ffi::OsStr,
     fs::{read_to_string, write},
-    process::{Command, Stdio},
+    process::Command,
 };
-use toml_edit::{DocumentMut, Item};
+use toml_edit::{DocumentMut, Item, Value};
+
+use crate::git::{
+    amend_latest_commit, commit_subject, latest_commit, latest_tag_date, repository_is_clean,
+    rev_short_date,
+};
+
+mod git;
 
 const VERSION_BUMP_SUBJECT: &str = "Bump version";
 
@@ -54,16 +61,6 @@ fn version_prerelease_is_date_of_version_bump_or_latest_tag() {
 
     let contents = read_to_string("Cargo.toml").unwrap();
     let mut document = contents.parse::<DocumentMut>().unwrap();
-    let version = document
-        .get_mut("package")
-        .and_then(Item::as_table_mut)
-        .and_then(|table| table.get_mut("version"))
-        .and_then(Item::as_value_mut)
-        .unwrap();
-    let version_as_str = version.as_str().unwrap();
-    let (base, prerelease) = version_as_str
-        .split_once('-')
-        .unwrap_or((version_as_str, ""));
 
     if enabled("BLESS") {
         if version_bump_date.is_none() {
@@ -75,15 +72,13 @@ fn version_prerelease_is_date_of_version_bump_or_latest_tag() {
         if !repository_is_clean().unwrap() {
             panic!("`BLESS` was set but repository is dirty");
         }
-        // smoelius: Ensure the latest commit uses the current date.
-        amend_latest_commit::<_, &OsStr>([]).unwrap();
-        let amended_date = rev_short_date("HEAD").unwrap();
-        *version = format!("{base}-{amended_date}").into();
-        write("Cargo.toml", document.to_string()).unwrap();
-        update_lockfile().unwrap();
-        amend_latest_commit(["Cargo.toml", "Cargo.lock"]).unwrap();
+        update_version(document).unwrap();
         return;
     }
+
+    let version = package_version(&mut document).unwrap();
+    let version_str = version.as_str().unwrap();
+    let (_, prerelease) = split_version(version_str);
 
     let date = version_bump_date.unwrap_or_else(|| {
         latest_tag_date().unwrap_or_else(|error| {
@@ -97,95 +92,41 @@ fn version_prerelease_is_date_of_version_bump_or_latest_tag() {
     assert_eq!(date, prerelease);
 }
 
-fn latest_commit() -> Result<String> {
-    let mut command = Command::new("git");
-    command.args(["rev-parse", "HEAD"]);
-    stdout_as_string(command)
-}
-
-fn commit_subject(rev: &str) -> Result<String> {
-    let mut command = Command::new("git");
-    command.args(["log", "-1", "--format=%s", rev]);
-    stdout_as_string(command)
-}
-
-fn latest_tag_date() -> Result<String> {
-    let tag = latest_tag()?;
-    rev_short_date(&tag)
-}
-
-fn latest_tag() -> Result<String> {
-    let mut command = Command::new("git");
-    command.args(["describe", "--tags", "--abbrev=0"]);
-    stdout_as_string(command)
-}
-
-fn repository_is_clean() -> Result<bool> {
-    let mut command = Command::new("git");
-    command.stdout(Stdio::null());
-
-    command.args(["diff", "--exit-code"]);
-    let status = command.status()?;
-    if !status.success() {
-        return Ok(false);
-    }
-
-    command.arg("--staged");
-    let status = command.status()?;
-
-    Ok(status.success())
-}
-
-fn amend_latest_commit<I, S>(paths: I) -> Result<()>
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<OsStr>,
-{
-    let mut paths = paths.into_iter().peekable();
-
-    let git_committer_date = if paths.peek().is_some() {
-        rev_iso_date("HEAD").map(Some)?
-    } else {
-        None
+fn update_version(mut document: DocumentMut) -> Result<()> {
+    let Some(version) = package_version(&mut document) else {
+        bail!("failed to get package version");
     };
+    let Some(version_str) = version.as_str() else {
+        bail!("version is not a string");
+    };
+    let (base, _) = split_version(version_str);
 
-    let mut command = Command::new("git");
-    command.arg("add");
-    command.args(paths);
-    let status = command.status()?;
-    ensure!(status.success(), "command failed: {command:?}");
+    // smoelius: Ensure the latest commit uses the current date.
+    amend_latest_commit::<_, &OsStr>([])?;
 
-    let mut command = Command::new("git");
-    command.args(["commit", "--amend", "--allow-empty", "--no-edit"]);
-    if let Some(git_committer_date) = git_committer_date {
-        command.env("GIT_COMMITTER_DATE", git_committer_date);
-    }
-    let status = command.status()?;
-    ensure!(status.success(), "command failed: {command:?}");
+    let amended_date = rev_short_date("HEAD")?;
+
+    *version = format!("{base}-{amended_date}").into();
+
+    write("Cargo.toml", document.to_string())?;
+
+    update_lockfile()?;
+
+    amend_latest_commit(["Cargo.toml", "Cargo.lock"])?;
 
     Ok(())
 }
 
-// smoelius: Use the committer date rather than the author date. Rebasing normally changes the
-// committer date but not the author date. If a version bump commit is rebased onto (say) a bug fix,
-// we want the date of the rebase (the committer date), not the original date (the author date).
-fn rev_short_date(rev: &str) -> Result<String> {
-    let mut command = Command::new("git");
-    command.args(["log", "-1", "--format=%cs", rev]);
-    stdout_as_string(command)
+fn package_version(document: &mut DocumentMut) -> Option<&mut Value> {
+    document
+        .get_mut("package")
+        .and_then(Item::as_table_mut)
+        .and_then(|table| table.get_mut("version"))
+        .and_then(Item::as_value_mut)
 }
 
-fn rev_iso_date(rev: &str) -> Result<String> {
-    let mut command = Command::new("git");
-    command.args(["log", "-1", "--format=%cI", rev]);
-    stdout_as_string(command)
-}
-
-fn stdout_as_string(mut command: Command) -> Result<String> {
-    let output = command.output()?;
-    ensure!(output.status.success(), "command failed: {command:?}");
-    let stdout = str::from_utf8(&output.stdout)?;
-    Ok(stdout.trim_end().to_owned())
+fn split_version(version: &str) -> (&str, &str) {
+    version.split_once('-').unwrap_or((version, ""))
 }
 
 fn update_lockfile() -> Result<()> {
