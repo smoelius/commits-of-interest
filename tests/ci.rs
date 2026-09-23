@@ -77,8 +77,7 @@ fn version_prerelease_is_date_of_version_bump_or_latest_tag() {
     }
 
     let version = package_version(&mut document).unwrap();
-    let version_str = version.as_str().unwrap();
-    let (_, prerelease) = split_version(version_str);
+    let (_, prerelease) = split_version(version).unwrap();
 
     let date = version_bump_date.unwrap_or_else(|| {
         latest_tag_date().unwrap_or_else(|error| {
@@ -96,10 +95,9 @@ fn update_version(mut document: DocumentMut) -> Result<()> {
     let Some(version) = package_version(&mut document) else {
         bail!("failed to get package version");
     };
-    let Some(version_str) = version.as_str() else {
+    let Some((base, _)) = split_version(version) else {
         bail!("version is not a string");
     };
-    let (base, _) = split_version(version_str);
 
     // smoelius: Ensure the latest commit uses the current date.
     amend_latest_commit::<_, &OsStr>([])?;
@@ -125,8 +123,9 @@ fn package_version(document: &mut DocumentMut) -> Option<&mut Value> {
         .and_then(Item::as_value_mut)
 }
 
-fn split_version(version: &str) -> (&str, &str) {
-    version.split_once('-').unwrap_or((version, ""))
+fn split_version(version: &Value) -> Option<(&str, &str)> {
+    let s = version.as_str()?;
+    Some(s.split_once('+').unwrap_or((s, "")))
 }
 
 fn update_lockfile() -> Result<()> {
