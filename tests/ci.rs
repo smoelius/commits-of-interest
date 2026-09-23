@@ -50,7 +50,7 @@ fn fmt() {
 // smoelius: The name of the next test must match what is in scripts/update_version.sh.
 #[cfg_attr(dylint_lib = "general", allow(non_thread_safe_call_in_test))]
 #[test]
-fn version_prerelease_is_date_of_version_bump_or_latest_tag() {
+fn build_metadata_is_date_of_version_bump_or_latest_tag() {
     let latest_commit = latest_commit().unwrap();
     let latest_commit_subject = commit_subject(&latest_commit).unwrap();
     let version_bump_date = if latest_commit_subject == VERSION_BUMP_SUBJECT {
@@ -77,7 +77,7 @@ fn version_prerelease_is_date_of_version_bump_or_latest_tag() {
     }
 
     let version = package_version(&mut document).unwrap();
-    let (_, prerelease) = split_version(version).unwrap();
+    let (_, build_metadata) = split_version(version).unwrap();
 
     let date = version_bump_date.unwrap_or_else(|| {
         latest_tag_date().unwrap_or_else(|error| {
@@ -88,7 +88,7 @@ fn version_prerelease_is_date_of_version_bump_or_latest_tag() {
         })
     });
 
-    assert_eq!(date, prerelease);
+    assert_eq!(date, build_metadata);
 }
 
 fn update_version(mut document: DocumentMut) -> Result<()> {
@@ -104,7 +104,7 @@ fn update_version(mut document: DocumentMut) -> Result<()> {
 
     let amended_date = rev_short_date("HEAD")?;
 
-    *version = format!("{base}-{amended_date}").into();
+    *version = format!("{base}+{amended_date}").into();
 
     write("Cargo.toml", document.to_string())?;
 
