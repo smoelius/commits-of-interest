@@ -14,4 +14,4 @@ if [[ "$(git branch --show-current)" = 'main' ]]; then
 fi
 
 # smoelius: The name of the next test must match what is in tests/ci.rs.
-BLESS=1 cargo test --test ci version_prerelease_is_date_of_version_bump_or_latest_tag -- --exact
+BLESS=1 cargo test --test ci build_metadata_is_date_of_version_bump_or_latest_tag -- --exact
