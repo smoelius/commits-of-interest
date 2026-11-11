@@ -45,6 +45,7 @@ struct App {
     // Navigation and layout
     focus: Pane,
     pane_areas: [Rect; 2],
+    keep_selection_visible: bool,
     selected: usize,
     offset: usize,
     diff_scroll: usize,
@@ -71,6 +72,7 @@ impl App {
             items,
             focus: Pane::Left,
             pane_areas: [Rect::default(); 2],
+            keep_selection_visible: true,
             selected,
             offset: 0,
             diff_scroll: 0,
@@ -93,6 +95,7 @@ impl App {
     }
 
     pub fn next(&mut self) {
+        self.keep_selection_visible = true;
         let mut next = self.selected + 1;
         while next < self.entries.len() {
             if matches!(self.entries[next], ListEntry::Path { .. }) {
@@ -105,6 +108,7 @@ impl App {
     }
 
     pub fn prev(&mut self) {
+        self.keep_selection_visible = true;
         let mut prev = self.selected;
         while prev > 0 {
             prev -= 1;
@@ -171,6 +175,7 @@ impl App {
         self.commits = commits;
         self.selected = first_entry(&self.entries).unwrap_or(0);
         self.offset = 0;
+        self.keep_selection_visible = true;
         self.diff_scroll = 0;
     }
 }

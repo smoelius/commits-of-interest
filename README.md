@@ -28,8 +28,8 @@ Run `commits-of-interest --help` for more details.
 Click either pane to focus it. In the left pane, click a commit header to select
 its first file, or click a file to display its diff. Arrow keys and Tab also
 work for navigation and pane focus. Use the scroll wheel over the left pane to
-move through files, or over the right pane to scroll the diff. Wheel scrolling
-keeps the current pane focus.
+scroll the list without changing the selected file, or over the right pane to
+scroll the diff. Wheel scrolling keeps the current pane focus.
 
 ## Filtering
 

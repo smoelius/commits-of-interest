@@ -49,8 +49,17 @@ fn draw_commit_pane(app: &mut App, frame: &mut Frame, area: Rect) {
                 .add_modifier(Modifier::BOLD),
         );
 
+    let visible_height = usize::from(area.height.saturating_sub(2));
+    app.offset = app
+        .offset
+        .min(app.entries.len().saturating_sub(visible_height));
     let mut state = ListState::default().with_offset(app.offset);
-    state.select(Some(app.selected));
+    // `List` scrolls to its selection, so omit offscreen selections during wheel scrolling.
+    if app.keep_selection_visible
+        || (app.offset..app.offset.saturating_add(visible_height)).contains(&app.selected)
+    {
+        state.select(Some(app.selected));
+    }
     frame.render_stateful_widget(list, area, &mut state);
     app.offset = state.offset();
 }
@@ -111,7 +120,9 @@ fn draw_footer(app: &App, frame: &mut Frame, area: Rect) {
             app.input_buffer
         ))
     } else {
-        Line::from("↑↓/wheel move  ←→/Tab focus  click select/focus  i filter  s save  q/Esc quit")
+        Line::from(
+            "↑↓ move  wheel scroll  ←→/Tab focus  click select/focus  i filter  s save  q/Esc quit",
+        )
     };
     frame.render_widget(Paragraph::new(prompt), area);
 }
