@@ -97,6 +97,7 @@ fn handle_mouse_down(app: &mut App, mouse: MouseEvent) {
         None => return,
     };
 
+    app.keep_selection_visible = true;
     if app.selected != selected {
         app.selected = selected;
         app.diff_scroll = 0;
@@ -110,14 +111,16 @@ fn handle_mouse_scroll(app: &mut App, mouse: MouseEvent) {
     match mouse.kind {
         MouseEventKind::ScrollUp => {
             if left.contains(position) {
-                app.prev();
+                app.keep_selection_visible = false;
+                app.offset = app.offset.saturating_sub(1);
             } else if right.contains(position) {
                 app.scroll_diff_up();
             }
         }
         MouseEventKind::ScrollDown => {
             if left.contains(position) {
-                app.next();
+                app.keep_selection_visible = false;
+                app.offset = app.offset.saturating_add(1);
             } else if right.contains(position) {
                 app.scroll_diff_down();
             }
