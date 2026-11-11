@@ -75,7 +75,10 @@ fn handle_mouse_down(app: &mut App, mouse: MouseEvent) {
         return;
     }
 
-    app.focus = Pane::Left;
+    if app.focus != Pane::Left {
+        app.focus = Pane::Left;
+        return;
+    }
 
     let content = left.inner(Margin::new(1, 1));
     if !content.contains(position) {
