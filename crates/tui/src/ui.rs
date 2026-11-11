@@ -56,9 +56,9 @@ fn draw_commit_pane(app: &mut App, frame: &mut Frame, area: Rect) {
     let mut state = ListState::default().with_offset(app.offset);
     // `List` scrolls to its selection, so omit offscreen selections during wheel scrolling.
     if app.keep_selection_visible
-        || (app.offset..app.offset.saturating_add(visible_height)).contains(&app.selected)
+        || (app.offset..app.offset.saturating_add(visible_height)).contains(&app.selection)
     {
-        state.select(Some(app.selected));
+        state.select(Some(app.selection));
     }
     frame.render_stateful_widget(list, area, &mut state);
     app.offset = state.offset();

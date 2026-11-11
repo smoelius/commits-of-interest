@@ -83,7 +83,7 @@ fn handle_mouse_down(app: &mut App, mouse: MouseEvent) {
     }
 
     let index = app.offset + usize::from(mouse.row - content.y);
-    let selected = match app.entries.get(index) {
+    let selection = match app.entries.get(index) {
         Some(ListEntry::Path { .. }) => index,
         Some(ListEntry::Commit { commit_idx, .. }) => {
             // Commit headers select their first file, if one exists.
@@ -98,8 +98,8 @@ fn handle_mouse_down(app: &mut App, mouse: MouseEvent) {
     };
 
     app.keep_selection_visible = true;
-    if app.selected != selected {
-        app.selected = selected;
+    if app.selection != selection {
+        app.selection = selection;
         app.diff_scroll = 0;
     }
 }

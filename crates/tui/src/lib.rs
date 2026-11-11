@@ -46,7 +46,7 @@ struct App {
     focus: Pane,
     pane_areas: [Rect; 2],
     keep_selection_visible: bool,
-    selected: usize,
+    selection: usize,
     offset: usize,
     diff_scroll: usize,
 
@@ -63,7 +63,7 @@ impl App {
     fn new(commits: Vec<CommitInfo>, revision: String) -> Self {
         let entries = entries_from_commits(&commits);
         let items = build_items(&entries, &commits);
-        let selected = first_entry(&entries).unwrap_or(0);
+        let selection = first_entry(&entries).unwrap_or(0);
 
         Self {
             revision,
@@ -73,7 +73,7 @@ impl App {
             focus: Pane::Left,
             pane_areas: [Rect::default(); 2],
             keep_selection_visible: true,
-            selected,
+            selection,
             offset: 0,
             diff_scroll: 0,
             input_mode: InputMode::Normal,
@@ -84,7 +84,7 @@ impl App {
     }
 
     pub fn selected_file_diff(&self) -> Option<&FileDiff> {
-        match self.entries.get(self.selected)? {
+        match self.entries.get(self.selection)? {
             ListEntry::Path {
                 commit_idx,
                 file_idx,
@@ -96,10 +96,10 @@ impl App {
 
     pub fn next(&mut self) {
         self.keep_selection_visible = true;
-        let mut next = self.selected + 1;
+        let mut next = self.selection + 1;
         while next < self.entries.len() {
             if matches!(self.entries[next], ListEntry::Path { .. }) {
-                self.selected = next;
+                self.selection = next;
                 self.diff_scroll = 0;
                 return;
             }
@@ -109,11 +109,11 @@ impl App {
 
     pub fn prev(&mut self) {
         self.keep_selection_visible = true;
-        let mut prev = self.selected;
+        let mut prev = self.selection;
         while prev > 0 {
             prev -= 1;
             if matches!(self.entries[prev], ListEntry::Path { .. }) {
-                self.selected = prev;
+                self.selection = prev;
                 self.diff_scroll = 0;
 
                 // Ensure the commit header above this file is visible.
@@ -173,7 +173,7 @@ impl App {
         self.entries = entries_from_commits(&commits);
         self.items = build_items(&self.entries, &commits);
         self.commits = commits;
-        self.selected = first_entry(&self.entries).unwrap_or(0);
+        self.selection = first_entry(&self.entries).unwrap_or(0);
         self.offset = 0;
         self.keep_selection_visible = true;
         self.diff_scroll = 0;
